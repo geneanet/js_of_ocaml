@@ -22,6 +22,8 @@
 //Provides: caml_current_dir
 if(joo_global_object.process && joo_global_object.process.cwd)
   var caml_current_dir = joo_global_object.process.cwd().replace(/\\/g,'/');
+else if(joo_global_object.cordova && joo_global_object.cordova.file)
+  var caml_current_dir = joo_global_object.cordova.file.applicationDirectory.replace(/\\/g,'/');
 else
   var caml_current_dir =  "/static";
 if(caml_current_dir.slice(-1) !== "/") caml_current_dir += "/"
@@ -54,12 +56,20 @@ function caml_make_path (name) {
   return ncomp;
 }
 
+joo_global_object.console.log ("Hey!") ;
+
 //Provides:jsoo_mount_point
-//Requires: MlFakeDevice, MlNodeDevice, caml_root, fs_node_supported
+//Requires: MlFakeDevice, MlNodeDevice, caml_root, fs_node_supported, MlCordovaDevice
 var jsoo_mount_point = []
 if (fs_node_supported()) {
+    joo_global_object.console.log ("node");
     jsoo_mount_point.push({path:caml_root,device:new MlNodeDevice(caml_root)});
+} else if (typeof joo_global_object.cordova !== 'undefined'
+           && typeof joo_global_object.cordova.file !== 'undefined') {
+    joo_global_object.console.log ("cordova");
+    jsoo_mount_point.push({path:caml_root,device:new MlCordovaDevice(caml_root)});
 } else {
+    joo_global_object.console.log ("vanilla");
     jsoo_mount_point.push({path:caml_root,device:new MlFakeDevice(caml_root)});
 }
 jsoo_mount_point.push({path:caml_root+"static/", device:new MlFakeDevice(caml_root+"static/")});
@@ -78,6 +88,8 @@ function caml_list_mount_point(){
 //Provides: resolve_fs_device
 //Requires: caml_make_path, jsoo_mount_point
 function resolve_fs_device(name){
+  joo_global_object.console.log ("resolve_fs_device");
+  joo_global_object.console.log (name);
   var path = caml_make_path(name);
   var name = path.join("/");
   var name_slash = name + "/";
