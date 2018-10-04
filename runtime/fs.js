@@ -23,7 +23,7 @@
 if(joo_global_object.process && joo_global_object.process.cwd)
   var caml_current_dir = joo_global_object.process.cwd().replace(/\\/g,'/');
 else if(joo_global_object.cordova && joo_global_object.cordova.file)
-  var caml_current_dir = joo_global_object.cordova.file.applicationDirectory.replace(/\\/g,'/');
+  var caml_current_dir = "/"    // FIXME
 else
   var caml_current_dir =  "/static";
 if(caml_current_dir.slice(-1) !== "/") caml_current_dir += "/"

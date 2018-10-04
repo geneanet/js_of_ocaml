@@ -18,7 +18,7 @@
 // Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 //Provides: MlCordovaDevice
-//Requires: MlFakeFile
+//Requires: MlFakeDevice
 function MlCordovaDevice(root) {
   joo_global_object.console.log('MlCordovaDevice');
   joo_global_object.console.log (root);
@@ -26,6 +26,7 @@ function MlCordovaDevice(root) {
   window.requestFileSystem(joo_global_object.LocalFileSystem.PERSISTENT, 0, function (fs) { device.fs = fs ; }) ;
   this.root = root;
   this.content = {};
+  this.fake = new MlFakeDevice(root);
 }
 
 MlCordovaDevice.prototype.nm = function(name) {
@@ -53,24 +54,46 @@ MlCordovaDevice.prototype.unlink = function(name) {
   this.fs.root.getFile(name, { create: false },
                        function(f) { f.remove ( function () { res = true },
                                                 function () { res = false } ) } ) ;
+  this.fake.unlink (name) ;
   return res ;
 }
 
-// FIXME: support flags
+// FIXME: handle f
 MlCordovaDevice.prototype.open = function(name, f) {
-  var path = this.nm(name) ;
+  if (this.fake.exists (name)) { joo_global_object.console.log('exists in fake') ; return this.fake.open (name, f) }
+  joo_global_object.console.log('Entering MlCordovaDevice.prototype.open ' + name);
   var res ;
   var loaded = false ;
-  this.fs.root.getFile(path, { create: false },
+  joo_global_object.console.log('Foo');
+  joo_global_object.console.log(loaded);
+  this.fs.root.getFile(name, { create: false },
                        function () {
+                           joo_global_object.console.log('Allez');
                            var reader = new joo_global_object.FileReader();
-                           reader.onloadend = function() { res = new MlFakeFile(this.result) ;
-                                                           loaded = true } ;
+                           reader.onload = function (e) {
+                               joo_global_object.console.log('loadend');
+                               this.fake.register(name, e.target.result);
+                               res = this.fake.open(name, f);
+                               loaded = true ;
+                               joo_global_object.console.log('loaded = true');
+                           } ;
                            reader.readAsBinaryText() ;
                        },
-                       function () { loaded = true ; }) ;
-
-    (function wait() { if (loaded) { return } else { joo_global_object.setTimeout(wait(), 5000) ; } }) ();
+                       function () {
+                           joo_global_object.console.log('Should it be? ( ' + this.nm(name) + ')');
+                           loaded = true ;
+                       }
+                      ) ;
+  joo_global_object.console.log('Bar');
+  joo_global_object.console.log(loaded);
+    var wait = function () {
+        joo_global_object.console.log('.') ;
+        if (loaded) { return } else { joo_global_object.setTimeout(wait, 500) }
+    } ;
+    wait () ;
+    joo_global_object.console.log('Returning from MlCordovaDevice.prototype.open');
+    joo_global_object.console.log(loaded);
+    res
 }
 
 MlCordovaDevice.prototype.constructor = MlCordovaDevice
