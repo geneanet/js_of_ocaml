@@ -19,65 +19,58 @@
 
 //Provides: MlCordovaDevice
 //Requires: MlCordovaFile, MlFakeFile
-function MlCordovaDevice(root) {
-  var device = this ;
-  window.requestFileSystem(joo_global_object.LocalFileSystem.PERSISTENT, 0, function (fs) { device.fs = fs ; }) ;
-  this.root = root;
-  this.content = {};
-}
+var MlCordovaDevice = (function () {
+    var instance ;
+    return function (root) {
+        if (instance) {
+            if (instance.root != root) { throw "instance.root != root" }
+            return instance
+        } else {
+            this.fs = window.requestFileSystemSync(joo_global_object.LocalFileSystem.PERSISTENT, 0) ;
+            this.root = root ;
+            this.content = {} ;
+        }
+    }
+}) ()
+
+// function MlCordovaDevice(root) {
+//   var device = this ;
+//   window.requestFileSystem(joo_global_object.LocalFileSystem.PERSISTENT, 0, function (fs) { device.fs = fs ; }) ;
+//   this.root = root;
+//   this.content = {};
+// }
 
 MlCordovaDevice.prototype.nm = function(name) {
   return (this.root + name);
 }
 
 MlCordovaDevice.prototype.exists = function(name) {
-  var res ;
-  this.fs.root.getFile(name, { create: false },
-                       function () { res = true ; },
-                       function () { res = false ; }) ;
-  return res ;
+    try { this.fs.root.getFile(name, { create: false } ) ; return 1 }
+    catch (e) { return 0 }
 }
 
 MlCordovaDevice.prototype.is_dir = function(name) {
-  var res ;
-  this.fs.root.getFile(name, { create: false },
-                       function (f) { res = f.isDirectory ; },
-                       function () { res = false ; }) ;
-  return res ;
+    try { (this.fs.root.getFile(name, { create: false } )).isDirectory | 0 }
+    catch (e) { return 0 }
 }
 
 MlCordovaDevice.prototype.unlink = function(name) {
-  var res ;
-  this.fs.root.getFile(name, { create: false },
-                       function(f) { f.remove ( function () { res = true },
-                                                function () { res = false } ) } ) ;
-  return res ;
+    try { this.fs.root.getFile(name, { create: false }).remove () ; return true }
+    catch (e) { return false }
 }
 
 // FIXME: handle f
 MlCordovaDevice.prototype.open = function(name, f) {
-    var res ;
-    var done = false ;
-    this.fs.root.getFile (
-        name, { create: false }, function (fe) {
-            var reader = new joo_global_object.FileReader () ;
-            reader.onload = function (e) {
-                res = new MlCordovaFile(name, fe, new MlFakeFile(e.target.result) ) ;
-                done = true ;
-            } ;
-            reader.readAsBinaryText () ;
-        },
-        function () { done = true ; }
-    ) ;
-    while (!done) {} ;
-    return res
+    var fe = this.fs.root.getFile (name, { create: false }) ;
+    var reader = new joo_global_object.FileReaderSync () ;
+    return new MlCordovaFile(name, fe, reader.readAsBinaryText ())
 }
 
 MlCordovaDevice.prototype.constructor = MlCordovaDevice
 
 //Provides: MlCordovaFile
 //Requires: MlFile, MlFakeFile
-function MlCordovaFile(fs, name, fileEntry, fake) {
+function MlCordovaFile(name, fileEntry, fake) {
     this.fake = fake ;
     this.fileEntry = fileEntry ;
     this.name = name ;
@@ -93,18 +86,9 @@ MlCordovaFile.prototype.close = function () {
 }
 MlCordovaFile.prototype.write = function(offset, buf, pos, len) {
     this.fake.write (offset, buf, pos, len) ;
-    var done = false ;
-    this.fileEntry.createWriter (function (fw) {
-        fw.onwriteend = function () {
-            var tmp = this.fs.open (this.name, {}) ;
-            this.fake = tmp.fake ;
-            this.fileEntry = tmp.fileEntry ;
-            done = true ;
-        } ;
-        fw.write(new joo_global_object.Blob([ this.fake.data ], {type:'text/plain'})) ;
-    });
-    while (!done) {} ;
-    return 0
+    var fw = this.fileEntry.createWriter () ;
+    fw.write(new joo_global_object.Blob([ this.fake.data ], {type:'text/plain'})) ;
+    return 0 ;
 }
 
 MlCordovaFile.prototype.constructor = MlCordovaFile
