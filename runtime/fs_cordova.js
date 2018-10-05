@@ -18,15 +18,12 @@
 // Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 //Provides: MlCordovaDevice
-//Requires: MlFakeDevice
+//Requires: MlCordovaFile, MlFakeFile
 function MlCordovaDevice(root) {
-  joo_global_object.console.log('MlCordovaDevice');
-  joo_global_object.console.log (root);
   var device = this ;
   window.requestFileSystem(joo_global_object.LocalFileSystem.PERSISTENT, 0, function (fs) { device.fs = fs ; }) ;
   this.root = root;
   this.content = {};
-  this.fake = new MlFakeDevice(root);
 }
 
 MlCordovaDevice.prototype.nm = function(name) {
@@ -54,46 +51,60 @@ MlCordovaDevice.prototype.unlink = function(name) {
   this.fs.root.getFile(name, { create: false },
                        function(f) { f.remove ( function () { res = true },
                                                 function () { res = false } ) } ) ;
-  this.fake.unlink (name) ;
   return res ;
 }
 
 // FIXME: handle f
 MlCordovaDevice.prototype.open = function(name, f) {
-  if (this.fake.exists (name)) { joo_global_object.console.log('exists in fake') ; return this.fake.open (name, f) }
-  joo_global_object.console.log('Entering MlCordovaDevice.prototype.open ' + name);
-  var res ;
-  var loaded = false ;
-  joo_global_object.console.log('Foo');
-  joo_global_object.console.log(loaded);
-  this.fs.root.getFile(name, { create: false },
-                       function () {
-                           joo_global_object.console.log('Allez');
-                           var reader = new joo_global_object.FileReader();
-                           reader.onload = function (e) {
-                               joo_global_object.console.log('loadend');
-                               this.fake.register(name, e.target.result);
-                               res = this.fake.open(name, f);
-                               loaded = true ;
-                               joo_global_object.console.log('loaded = true');
-                           } ;
-                           reader.readAsBinaryText() ;
-                       },
-                       function () {
-                           joo_global_object.console.log('Should it be? ( ' + this.nm(name) + ')');
-                           loaded = true ;
-                       }
-                      ) ;
-  joo_global_object.console.log('Bar');
-  joo_global_object.console.log(loaded);
-    var wait = function () {
-        joo_global_object.console.log('.') ;
-        if (loaded) { return } else { joo_global_object.setTimeout(wait, 500) }
-    } ;
-    wait () ;
-    joo_global_object.console.log('Returning from MlCordovaDevice.prototype.open');
-    joo_global_object.console.log(loaded);
-    res
+    var res ;
+    var done = false ;
+    this.fs.root.getFile (
+        name, { create: false }, function (fe) {
+            var reader = new joo_global_object.FileReader () ;
+            reader.onload = function (e) {
+                res = new MlCordovaFile(name, fe, new MlFakeFile(e.target.result) ) ;
+                done = true ;
+            } ;
+            reader.readAsBinaryText () ;
+        },
+        function () { done = true ; }
+    ) ;
+    while (!done) {} ;
+    return res
 }
 
 MlCordovaDevice.prototype.constructor = MlCordovaDevice
+
+//Provides: MlCordovaFile
+//Requires: MlFile, MlFakeFile
+function MlCordovaFile(fs, name, fileEntry, fake) {
+    this.fake = fake ;
+    this.fileEntry = fileEntry ;
+    this.name = name ;
+}
+MlCordovaFile.prototype.read = function (offset, buf, pos, len) {
+    this.fake.read (offset, buf, pos, len) ;
+}
+MlCordovaFile.prototype.read_one = function (offset) {
+    this.fake.read_one (offset) ;
+}
+MlCordovaFile.prototype.close = function () {
+    this.fake.close () ;
+}
+MlCordovaFile.prototype.write = function(offset, buf, pos, len) {
+    this.fake.write (offset, buf, pos, len) ;
+    var done = false ;
+    this.fileEntry.createWriter (function (fw) {
+        fw.onwriteend = function () {
+            var tmp = this.fs.open (this.name, {}) ;
+            this.fake = tmp.fake ;
+            this.fileEntry = tmp.fileEntry ;
+            done = true ;
+        } ;
+        fw.write(new joo_global_object.Blob([ this.fake.data ], {type:'text/plain'})) ;
+    });
+    while (!done) {} ;
+    return 0
+}
+
+MlCordovaFile.prototype.constructor = MlCordovaFile

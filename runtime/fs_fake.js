@@ -110,7 +110,7 @@ MlFakeDevice.prototype.constructor = MlFakeDevice
 
 //Provides: MlFakeFile
 //Requires: MlFile
-//Requires: caml_create_bytes, caml_ml_bytes_length,caml_blit_bytes
+//Requires: caml_create_bytes, caml_ml_bytes_length,caml_blit_bytes, caml_raise_constant, caml_global_data
 //Requires: caml_bytes_get
 function MlFakeFile(content){
   this.data = content;
