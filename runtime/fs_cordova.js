@@ -21,56 +21,71 @@
 //Requires: MlCordovaFile, MlFakeFile
 var MlCordovaDevice = (function () {
     var instance ;
+    window.requestFileSystem(joo_global_object.LocalFileSystem.PERSISTENT, 0,
+                             function (fs) { instance.fs = fs ; }) ;
     return function (root) {
         if (instance) {
-            if (instance.root != root) { throw "instance.root != root" }
-            return instance
+            if (instance.root && instance.root != root) { throw "instance.root != root" }
+            else if (instance.locked) { throw "locked" }
+            else { return instance }
         } else {
-            this.fs = window.requestFileSystemSync(joo_global_object.LocalFileSystem.PERSISTENT, 0) ;
-            this.root = root ;
-            this.content = {} ;
+            instance.root = root ;
+            return intance
         }
     }
-}) ()
+}) () ;
 
-// function MlCordovaDevice(root) {
-//   var device = this ;
-//   window.requestFileSystem(joo_global_object.LocalFileSystem.PERSISTENT, 0, function (fs) { device.fs = fs ; }) ;
-//   this.root = root;
-//   this.content = {};
-// }
 
 MlCordovaDevice.prototype.nm = function(name) {
   return (this.root + name);
 }
 
 MlCordovaDevice.prototype.exists = function(name) {
-    try { this.fs.root.getFile(name, { create: false } ) ; return 1 }
-    catch (e) { return 0 }
+  var res ;
+  this.fs.root.getFile(name, { create: false },
+                       function () { res = true ; },
+                       function () { res = false ; }) ;
+  return res ;
 }
 
 MlCordovaDevice.prototype.is_dir = function(name) {
-    try { (this.fs.root.getFile(name, { create: false } )).isDirectory | 0 }
-    catch (e) { return 0 }
+  var res ;
+  this.fs.root.getFile(name, { create: false },
+                       function (f) { res = f.isDirectory ; },
+                       function () { res = false ; }) ;
+  return res ;
 }
 
 MlCordovaDevice.prototype.unlink = function(name) {
-    try { this.fs.root.getFile(name, { create: false }).remove () ; return true }
-    catch (e) { return false }
+  var res ;
+  this.fs.root.getFile(name, { create: false },
+                       function(f) { f.remove ( function () { res = true },
+                                                function () { res = false } ) } ) ;
+  return res ;
 }
 
 // FIXME: handle f
 MlCordovaDevice.prototype.open = function(name, f) {
-    var fe = this.fs.root.getFile (name, { create: false }) ;
-    var reader = new joo_global_object.FileReaderSync () ;
-    return new MlCordovaFile(name, fe, reader.readAsBinaryText ())
+    var res ;
+
+    this.fs.root.getFile (
+        name, { create: false }, function (fe) {
+            var reader = new joo_global_object.FileReader () ;
+            reader.onload = function (e) {
+                res = new MlCordovaFile(name, fe, new MlFakeFile(e.target.result) ) ;
+            } ;
+            reader.readAsBinaryText () ;
+        },
+        function () {  }
+    ) ;
+    return res
 }
 
 MlCordovaDevice.prototype.constructor = MlCordovaDevice
 
 //Provides: MlCordovaFile
 //Requires: MlFile, MlFakeFile
-function MlCordovaFile(name, fileEntry, fake) {
+function MlCordovaFile(fs, name, fileEntry, fake) {
     this.fake = fake ;
     this.fileEntry = fileEntry ;
     this.name = name ;
@@ -86,9 +101,17 @@ MlCordovaFile.prototype.close = function () {
 }
 MlCordovaFile.prototype.write = function(offset, buf, pos, len) {
     this.fake.write (offset, buf, pos, len) ;
-    var fw = this.fileEntry.createWriter () ;
-    fw.write(new joo_global_object.Blob([ this.fake.data ], {type:'text/plain'})) ;
-    return 0 ;
+    var done = false ;
+    this.fileEntry.createWriter (function (fw) {
+        fw.onwriteend = function () {
+            var tmp = this.fs.open (this.name, {}) ;
+            this.fake = tmp.fake ;
+            this.fileEntry = tmp.fileEntry ;
+            done = true ;
+        } ;
+        fw.write(new joo_global_object.Blob([ this.fake.data ], {type:'text/plain'})) ;
+    });
+    return 0
 }
 
 MlCordovaFile.prototype.constructor = MlCordovaFile
