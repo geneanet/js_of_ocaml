@@ -22,6 +22,9 @@
 //Provides: caml_current_dir
 if(joo_global_object.process && joo_global_object.process.cwd)
   var caml_current_dir = joo_global_object.process.cwd().replace(/\\/g,'/');
+else if (typeof joo_global_object.cordova !== 'undefined'
+         && typeof joo_global_object.cordova.file!== 'undefined' )
+  var caml_current_dir = "www/"
 else
   var caml_current_dir =  "/static";
 if(caml_current_dir.slice(-1) !== "/") caml_current_dir += "/"
