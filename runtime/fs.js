@@ -20,10 +20,10 @@
 ///////////// Dummy filesystem
 
 //Provides: caml_current_dir
+//Requires: fs_cordova_supported
 if(joo_global_object.process && joo_global_object.process.cwd)
   var caml_current_dir = joo_global_object.process.cwd().replace(/\\/g,'/');
-else if (typeof joo_global_object.cordova !== 'undefined'
-         && typeof joo_global_object.cordova.file!== 'undefined' )
+else if (fs_cordova_supported ())
   var caml_current_dir = "www/"
 else
   var caml_current_dir =  "/static";
@@ -32,7 +32,6 @@ if(caml_current_dir.slice(-1) !== "/") caml_current_dir += "/"
 //Provides: caml_root
 //Requires: caml_current_dir
 var caml_root = caml_current_dir.match(/[^\/]*\//)[0];
-
 
 //Provides: MlFile
 function MlFile(){  }

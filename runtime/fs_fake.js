@@ -106,12 +106,8 @@ MlFakeDevice.prototype.register= function (name,content){
   }
 }
 MlFakeDevice.prototype.xhr = function (name) {
-    var url =
-        (typeof joo_global_object.cordova !== 'undefined'
-         && typeof joo_global_object.cordova.file !== 'undefined')
-        ? joo_global_object.cordova.file.applicationDirectory + name : name ;
     var xhr = new XMLHttpRequest () ;
-    xhr.open ('GET', url, false) ;
+    xhr.open ('GET', name, false) ;
     xhr.overrideMimeType ('text/plain; charset=x-user-defined') ;
     xhr.send (null) ;
     if (xhr.status != 200) { caml_raise_no_such_file (name) }
